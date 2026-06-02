@@ -5,9 +5,6 @@
 #define COLS 50
 
 char picture[ROWS][COLS];
-
-/* Function Prototypes */
-
 void initializePicture();
 void displayPicture();
 
