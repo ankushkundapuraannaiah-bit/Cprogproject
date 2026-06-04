@@ -1,399 +1,348 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <string.h>
 
 #define ROWS 25
-#define COLS 50
+#define COLS 60
+#define MAX_OBJECTS 20
+char canvas[ROWS][COLS];
 
-char picture[ROWS][COLS];
-void initializePicture();
-void displayPicture();
-
-void drawRectangle(int row, int col, int width, int height);
-void drawLine(int row1, int col1, int row2, int col2);
-void drawTriangle(int row1, int col1,
-                  int row2, int col2,
-                  int row3, int col3);
-void drawCircle(int centerRow, int centerCol, int radius);
-
-void deleteRectangle(int row, int col, int width, int height);
-void deleteLine(int row1, int col1, int row2, int col2);
-void deleteTriangle(int row1, int col1,
-                    int row2, int col2,
-                    int row3, int col3);
-void deleteCircle(int centerRow, int centerCol, int radius);
-
-void setPixel(int row, int col, char ch);
-
-/* Main Function */
-
-int main()
-{
-    int choice;
-
-    initializePicture();
-
-    do
-    {
-        printf("\n===== 2D GRAPHICS EDITOR =====\n");
-        printf("1. Draw Rectangle\n");
-        printf("2. Draw Line\n");
-        printf("3. Draw Triangle\n");
-        printf("4. Draw Circle\n");
-        printf("5. Delete Rectangle\n");
-        printf("6. Delete Line\n");
-        printf("7. Delete Triangle\n");
-        printf("8. Delete Circle\n");
-        printf("9. Display Picture\n");
-        printf("10. Clear Picture\n");
-        printf("0. Exit\n");
-
-        printf("Enter your choice: ");
-        scanf("%d", &choice);
-
-        switch(choice)
-        {
-            case 1:
-            {
-                int row, col, width, height;
-
-                printf("Enter Row and Column: ");
-                scanf("%d%d", &row, &col);
-
-                printf("Enter Width and Height: ");
-                scanf("%d%d", &width, &height);
-
-                drawRectangle(row, col, width, height);
-                break;
-            }
-
-            case 2:
-            {
-                int row1, col1, row2, col2;
-
-                printf("Enter Starting Point: ");
-                scanf("%d%d", &row1, &col1);
-
-                printf("Enter Ending Point: ");
-                scanf("%d%d", &row2, &col2);
-
-                drawLine(row1, col1, row2, col2);
-                break;
-            }
-
-            case 3:
-            {
-                int row1, col1, row2, col2, row3, col3;
-
-                printf("Enter First Vertex: ");
-                scanf("%d%d", &row1, &col1);
-
-                printf("Enter Second Vertex: ");
-                scanf("%d%d", &row2, &col2);
-
-                printf("Enter Third Vertex: ");
-                scanf("%d%d", &row3, &col3);
-
-                drawTriangle(row1, col1, row2, col2, row3, col3);
-                break;
-            }
-
-            case 4:
-            {
-                int centerRow, centerCol, radius;
-
-                printf("Enter Center Coordinates: ");
-                scanf("%d%d", &centerRow, &centerCol);
-
-                printf("Enter Radius: ");
-                scanf("%d", &radius);
-
-                drawCircle(centerRow, centerCol, radius);
-                break;
-            }
-
-            case 5:
-            {
-                int row, col, width, height;
-
-                printf("Enter Row and Column: ");
-                scanf("%d%d", &row, &col);
-
-                printf("Enter Width and Height: ");
-                scanf("%d%d", &width, &height);
-
-                deleteRectangle(row, col, width, height);
-                break;
-            }
-
-            case 6:
-            {
-                int row1, col1, row2, col2;
-
-                printf("Enter Starting Point: ");
-                scanf("%d%d", &row1, &col1);
-
-                printf("Enter Ending Point: ");
-                scanf("%d%d", &row2, &col2);
-
-                deleteLine(row1, col1, row2, col2);
-                break;
-            }
-
-            case 7:
-            {
-                int row1, col1, row2, col2, row3, col3;
-
-                printf("Enter First Vertex: ");
-                scanf("%d%d", &row1, &col1);
-
-                printf("Enter Second Vertex: ");
-                scanf("%d%d", &row2, &col2);
-
-                printf("Enter Third Vertex: ");
-                scanf("%d%d", &row3, &col3);
-
-                deleteTriangle(row1, col1, row2, col2, row3, col3);
-                break;
-            }
-
-            case 8:
-            {
-                int centerRow, centerCol, radius;
-
-                printf("Enter Center Coordinates: ");
-                scanf("%d%d", &centerRow, &centerCol);
-
-                printf("Enter Radius: ");
-                scanf("%d", &radius);
-
-                deleteCircle(centerRow, centerCol, radius);
-                break;
-            }
-
-            case 9:
-                displayPicture();
-                break;
-
-            case 10:
-                initializePicture();
-                printf("Picture Cleared Successfully\n");
-                break;
-
-            case 0:
-                printf("Program Terminated\n");
-                break;
-
-            default:
-                printf("Invalid Choice\n");
-        }
-
-    } while(choice != 0);
-
-    return 0;
+void init_canvas() {
+	for (int i = 0; i < ROWS; i++)
+		for (int j = 0; j < COLS; j++)
+			canvas[i][j] = '_';
 }
 
-/* Function Definitions */
+void display_canvas() {
+	printf("\n");
+	for (int i = 0; i < ROWS; i++) {
+		for (int j = 0; j < COLS; j++)
+			putchar(canvas[i][j]);
+		putchar('\n');
+	}
+	printf("\n");
+}
+typedef enum { SHAPE_CIRCLE, SHAPE_RECT, SHAPE_LINE, SHAPE_TRIANGLE } ShapeType;
 
-void initializePicture()
-{
-    int i, j;
+typedef struct {
+	ShapeType type;
+	int active;
+	int x1, y1, x2, y2, x3, y3, r;
+} Object;
 
-    for(i = 0; i < ROWS; i++)
-    {
-        for(j = 0; j < COLS; j++)
-        {
-            picture[i][j] = '_';
-        }
-    }
+Object objects[MAX_OBJECTS];
+int obj_count = 0;
+static void set_pixel(int row, int col) {
+	if (row >= 0 && row < ROWS && col >= 0 && col < COLS)
+		canvas[row][col] = '*';
 }
 
-void displayPicture()
-{
-    int i, j;
-
-    printf("\n");
-
-    for(i = 0; i < ROWS; i++)
-    {
-        for(j = 0; j < COLS; j++)
-        {
-            printf("%c ", picture[i][j]);
-        }
-        printf("\n");
-    }
+static void clear_pixel(int row, int col) {
+	if (row >= 0 && row < ROWS && col >= 0 && col < COLS)
+		canvas[row][col] = '_';
+}
+static void draw_line_pixels(int r1, int c1, int r2, int c2, void (*fn)(int,int)) {
+	int dr = abs(r2 - r1), dc = abs(c2 - c1);
+	int sr = (r1 < r2) ? 1 : -1;
+	int sc = (c1 < c2) ? 1 : -1;
+	int err = dr - dc;
+	while (1) {
+		fn(r1, c1);
+		if (r1 == r2 && c1 == c2) 
+		   break;
+		int e2 = 2 * err;
+		if (e2 > -dc) {
+			err -= dc;
+			r1 += sr;
+		}
+		if (e2 <  dr) {
+			err += dr;
+			c1 += sc;
+		}
+	}
+}
+static void draw_circle_pixels(int cr, int cc, int rad, void (*fn)(int,int)) {
+	int x = 0, y = rad;
+	int d = 1 - rad;
+	while (x <= y) {
+		fn(cr + x, cc + y);
+		fn(cr - x, cc + y);
+		fn(cr + x, cc - y);
+		fn(cr - x, cc - y);
+		fn(cr + y, cc + x);
+		fn(cr - y, cc + x);
+		fn(cr + y, cc - x);
+		fn(cr - y, cc - x);
+		if (d < 0)      d += 2 * x + 3;
+		else          {
+			d += 2 * (x - y) + 5;
+			y--;
+		}
+		x++;
+	}
+}
+static void render_object(Object *o, void (*fn)(int,int)) {
+	switch (o->type) {
+	case SHAPE_CIRCLE:
+		draw_circle_pixels(o->y1, o->x1, o->r, fn);
+		break;
+	case SHAPE_RECT:
+		draw_line_pixels(o->y1, o->x1, o->y1, o->x2, fn); 
+		draw_line_pixels(o->y2, o->x1, o->y2, o->x2, fn); 
+		draw_line_pixels(o->y1, o->x1, o->y2, o->x1, fn);
+		draw_line_pixels(o->y1, o->x2, o->y2, o->x2, fn);
+		break;
+	case SHAPE_LINE:
+		draw_line_pixels(o->y1, o->x1, o->y2, o->x2, fn);
+		break;
+	case SHAPE_TRIANGLE:
+		draw_line_pixels(o->y1, o->x1, o->y2, o->x2, fn);
+		draw_line_pixels(o->y2, o->x2, o->y3, o->x3, fn);
+		draw_line_pixels(o->y3, o->x3, o->y1, o->x1, fn);
+		break;
+	}
+}
+static void redraw_all() {
+	init_canvas();
+	for (int i = 0; i < obj_count; i++)
+		if (objects[i].active)
+			render_object(&objects[i], set_pixel);
+}
+static int read_int(const char *prompt) {
+	int v;
+	printf("%s", prompt);
+	scanf("%d", &v);
+	return v;
 }
 
-void setPixel(int row, int col, char ch)
-{
-    if(row >= 0 && row < ROWS &&
-       col >= 0 && col < COLS)
-    {
-        picture[row][col] = ch;
-    }
+static void flush() {
+	while (getchar() != '\n');
+}
+void add_circle() {
+	if (obj_count >= MAX_OBJECTS) {
+		puts("Object limit reached.");
+		return;
+	}
+	Object o = {0};
+	o.type = SHAPE_CIRCLE;
+	o.active = 1;
+	o.x1 = read_int("  Centre col  (0-59): ");
+	o.y1 = read_int("  Centre row  (0-24): ");
+	o.r  = read_int("  Radius            : ");
+	objects[obj_count++] = o;
+	render_object(&objects[obj_count-1], set_pixel);
+	printf("Circle added (id %d).\n", obj_count - 1);
 }
 
-void drawRectangle(int row, int col, int width, int height)
-{
-    int i;
-
-    for(i = 0; i < width; i++)
-    {
-        setPixel(row, col + i, '*');
-        setPixel(row + height - 1, col + i, '*');
-    }
-
-    for(i = 0; i < height; i++)
-    {
-        setPixel(row + i, col, '*');
-        setPixel(row + i, col + width - 1, '*');
-    }
+void add_rectangle() {
+	if (obj_count >= MAX_OBJECTS) {
+		puts("Object limit reached.");
+		return;
+	}
+	Object o = {0};
+	o.type = SHAPE_RECT;
+	o.active = 1;
+	o.x1 = read_int("  Top-left  col : ");
+	o.y1 = read_int("  Top-left  row : ");
+	o.x2 = read_int("  Bot-right col : ");
+	o.y2 = read_int("  Bot-right row : ");
+	objects[obj_count++] = o;
+	render_object(&objects[obj_count-1], set_pixel);
+	printf("Rectangle added (id %d).\n", obj_count - 1);
 }
 
-void drawLine(int row1, int col1, int row2, int col2)
-{
-    int i;
-
-    if(row1 == row2)
-    {
-        if(col1 > col2)
-        {
-            int temp = col1;
-            col1 = col2;
-            col2 = temp;
-        }
-
-        for(i = col1; i <= col2; i++)
-        {
-            setPixel(row1, i, '*');
-        }
-    }
-    else if(col1 == col2)
-    {
-        if(row1 > row2)
-        {
-            int temp = row1;
-            row1 = row2;
-            row2 = temp;
-        }
-
-        for(i = row1; i <= row2; i++)
-        {
-            setPixel(i, col1, '*');
-        }
-    }
+void add_line() {
+	if (obj_count >= MAX_OBJECTS) {
+		puts("Object limit reached.");
+		return;
+	}
+	Object o = {0};
+	o.type = SHAPE_LINE;
+	o.active = 1;
+	o.x1 = read_int("  Start col : ");
+	o.y1 = read_int("  Start row : ");
+	o.x2 = read_int("  End   col : ");
+	o.y2 = read_int("  End   row : ");
+	objects[obj_count++] = o;
+	render_object(&objects[obj_count-1], set_pixel);
+	printf("Line added (id %d).\n", obj_count - 1);
 }
 
-void drawTriangle(int row1, int col1,
-                  int row2, int col2,
-                  int row3, int col3)
-{
-    drawLine(row1, col1, row2, col2);
-    drawLine(row2, col2, row3, col3);
-    drawLine(row3, col3, row1, col1);
+void add_triangle() {
+	if (obj_count >= MAX_OBJECTS) {
+		puts("Object limit reached.");
+		return;
+	}
+	Object o = {0};
+	o.type = SHAPE_TRIANGLE;
+	o.active = 1;
+	o.x1 = read_int("  Vertex 1 col : ");
+	o.y1 = read_int("  Vertex 1 row : ");
+	o.x2 = read_int("  Vertex 2 col : ");
+	o.y2 = read_int("  Vertex 2 row : ");
+	o.x3 = read_int("  Vertex 3 col : ");
+	o.y3 = read_int("  Vertex 3 row : ");
+	objects[obj_count++] = o;
+	render_object(&objects[obj_count-1], set_pixel);
+	printf("Triangle added (id %d).\n", obj_count - 1);
+}
+void list_objects() {
+	const char *names[] = {"Circle","Rectangle","Line","Triangle"};
+	int found = 0;
+	printf("\n%-4s %-10s Details\n", "ID", "Shape");
+	printf("-------------------------------------\n");
+	for (int i = 0; i < obj_count; i++) {
+		if (!objects[i].active) continue;
+		found = 1;
+		Object *o = &objects[i];
+		printf("%-4d %-10s ", i, names[o->type]);
+		switch (o->type) {
+		case SHAPE_CIRCLE:
+			printf("centre(%d,%d) r=%d", o->x1,o->y1,o->r);
+			break;
+		case SHAPE_RECT:
+			printf("(%d,%d)-(%d,%d)", o->x1,o->y1,o->x2,o->y2);
+			break;
+		case SHAPE_LINE:
+			printf("(%d,%d)->(%d,%d)", o->x1,o->y1,o->x2,o->y2);
+			break;
+		case SHAPE_TRIANGLE:
+			printf("(%d,%d)(%d,%d)(%d,%d)",
+			       o->x1,o->y1,o->x2,o->y2,o->x3,o->y3);
+			break;
+		}
+		putchar('\n');
+	}
+	if (!found) puts("  No objects.");
+}
+void delete_object() {
+	list_objects();
+	if (obj_count == 0) 
+	return;
+	int id = read_int("Enter object id to delete: ");
+	if (id < 0 || id >= obj_count || !objects[id].active) {
+		puts("Invalid id.");
+		return;
+	}
+	objects[id].active = 0;
+	redraw_all();
+	printf("Object %d deleted.\n", id);
+}
+void modify_object() {
+	list_objects();
+	if (obj_count == 0) return;
+	int id = read_int("Enter object ID to modify: ");
+	if (id < 0 || id >= obj_count || !objects[id].active) {
+		puts("Invalid ID.");
+		return;
+	}
+	Object *o = &objects[id];
+	printf("Re-enter parameters for object %d:\n", id);
+	switch (o->type) {
+	case SHAPE_CIRCLE:
+		o->x1 = read_int("  New centre col : ");
+		o->y1 = read_int("  New centre row : ");
+		o->r  = read_int("  New radius     : ");
+		break;
+	case SHAPE_RECT:
+		o->x1 = read_int("  New top-left  col : ");
+		o->y1 = read_int("  New top-left  row : ");
+		o->x2 = read_int("  New bot-right col : ");
+		o->y2 = read_int("  New bot-right row : ");
+		break;
+	case SHAPE_LINE:
+		o->x1 = read_int("  New start col : ");
+		o->y1 = read_int("  New start row : ");
+		o->x2 = read_int("  New end   col : ");
+		o->y2 = read_int("  New end   row : ");
+		break;
+	case SHAPE_TRIANGLE:
+		o->x1 = read_int("  V1 col : ");
+		o->y1 = read_int("  V1 row : ");
+		o->x2 = read_int("  V2 col : ");
+		o->y2 = read_int("  V2 row : ");
+		o->x3 = read_int("  V3 col : ");
+		o->y3 = read_int("  V3 row : ");
+		break;
+	}
+	redraw_all();
+	printf("Object %d updated.\n", id);
+}
+void clear_all() {
+	init_canvas();
+	obj_count = 0;
+	puts("Canvas cleared.");
+}
+void add_menu() {
+	int ch;
+	printf("\nAdd shape\n");
+	printf("  1. Circle\n  2. Rectangle\n  3. Line\n  4. Triangle\n  0. Back\n");
+	printf("Choice: ");
+	scanf("%d", &ch);
+	flush();
+	switch (ch) {
+	case 1:
+		add_circle();
+		break;
+	case 2:
+		add_rectangle();
+		break;
+	case 3:
+		add_line();
+		break;
+	case 4:
+		add_triangle();
+		break;
+	default:
+		break;
+	}
 }
 
-void drawCircle(int centerRow, int centerCol, int radius)
-{
-    int row, col;
-
-    for(row = 0; row < ROWS; row++)
-    {
-        for(col = 0; col < COLS; col++)
-        {
-            int distance;
-
-            distance =
-                (row - centerRow) * (row - centerRow) +
-                (col - centerCol) * (col - centerCol);
-
-            if(distance >= radius * radius - radius &&
-               distance <= radius * radius + radius)
-            {
-                picture[row][col] = '*';
-            }
-        }
-    }
+void main_menu() {
+	int ch;
+	do {
+		printf("\n2D Graphics editor\n");
+		printf("  1. Display canvas\n");
+		printf("  2. Add shape\n");
+		printf("  3. Delete shape\n");
+		printf("  4. Modify shape\n");
+		printf("  5. List all objects\n");
+		printf("  6. Clear canvas\n");
+		printf("  0. Exit\n");
+		printf("=========================================\n");
+		printf("Choice: ");
+		scanf("%d", &ch);
+		flush();
+		switch (ch) {
+		case 1:
+			display_canvas();
+			break;
+		case 2:
+			add_menu();
+			break;
+		case 3:
+			delete_object();
+			break;
+		case 4:
+			modify_object();
+			break;
+		case 5:
+			list_objects();
+			break;
+		case 6:
+			clear_all();
+			break;
+		case 0:
+			puts("Goodbye!");
+			break;
+		default:
+			puts("Invalid choice.");
+		}
+	} while (ch != 0);
 }
-
-void deleteRectangle(int row, int col, int width, int height)
-{
-    int i;
-
-    for(i = 0; i < width; i++)
-    {
-        setPixel(row, col + i, '_');
-        setPixel(row + height - 1, col + i, '_');
-    }
-
-    for(i = 0; i < height; i++)
-    {
-        setPixel(row + i, col, '_');
-        setPixel(row + i, col + width - 1, '_');
-    }
-}
-
-void deleteLine(int row1, int col1, int row2, int col2)
-{
-    int i;
-
-    if(row1 == row2)
-    {
-        if(col1 > col2)
-        {
-            int temp = col1;
-            col1 = col2;
-            col2 = temp;
-        }
-
-        for(i = col1; i <= col2; i++)
-        {
-            setPixel(row1, i, '_');
-        }
-    }
-    else if(col1 == col2)
-    {
-        if(row1 > row2)
-        {
-            int temp = row1;
-            row1 = row2;
-            row2 = temp;
-        }
-
-        for(i = row1; i <= row2; i++)
-        {
-            setPixel(i, col1, '_');
-        }
-    }
-}
-
-void deleteTriangle(int row1, int col1,
-                    int row2, int col2,
-                    int row3, int col3)
-{
-    deleteLine(row1, col1, row2, col2);
-    deleteLine(row2, col2, row3, col3);
-    deleteLine(row3, col3, row1, col1);
-}
-
-void deleteCircle(int centerRow, int centerCol, int radius)
-{
-    int row, col;
-
-    for(row = 0; row < ROWS; row++)
-    {
-        for(col = 0; col < COLS; col++)
-        {
-            int distance;
-
-            distance =
-                (row - centerRow) * (row - centerRow) +
-                (col - centerCol) * (col - centerCol);
-
-            if(distance >= radius * radius - radius &&
-               distance <= radius * radius + radius)
-            {
-                picture[row][col] = '_';
-            }
-        }
-    }
+int main() {
+	init_canvas();
+	main_menu();
+	return 0;
 }
